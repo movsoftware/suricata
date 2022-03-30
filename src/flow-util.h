@@ -27,6 +27,10 @@
 #include "detect-engine-state.h"
 #include "tmqh-flow.h"
 
+#define CALCULATE_RT true
+#ifdef CALCULATE_RT
+#include "util-hash.h"
+#endif
 #define COPY_TIMESTAMP(src,dst) ((dst)->tv_sec = (src)->tv_sec, (dst)->tv_usec = (src)->tv_usec)
 
 #define RESET_COUNTERS(f) do { \
@@ -72,6 +76,11 @@
         (f)->sgh_toserver = NULL; \
         (f)->sgh_toclient = NULL; \
         (f)->flowvar = NULL; \
+        (f)->rt_table = NULL; \
+        (f)->totalrtusec = 0; \
+        (f)->minrtusec = 0; \
+        (f)->maxrtusec = 0; \
+        (f)->rtcnt = 0; \
         RESET_COUNTERS((f)); \
     } while (0)
 
@@ -124,6 +133,12 @@
                 MacSetReset(ms); \
             } \
         } \
+        HashTableFree((f)->rt_table); \
+        (f)->rt_table = NULL; \
+        (f)->totalrtusec = 0; \
+        (f)->minrtusec = 0; \
+        (f)->maxrtusec = 0; \
+        (f)->rtcnt = 0; \
         RESET_COUNTERS((f)); \
     } while(0)
 

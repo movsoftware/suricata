@@ -378,6 +378,27 @@ static inline void FlowUpdateEthernet(ThreadVars *tv, DecodeThreadVars *dtv,
     }
 }
 
+#ifdef CALCULATE_RT
+
+static uint32_t RTHashFunc(HashTable *h, void *data, uint16_t data_len)
+{
+    RTHashEntry *rte = (RTHashEntry *)data;
+    return rte->number % h->array_size;
+}
+
+static char RTHashCompareFunc(void *d1, uint16_t d1_len, void *d2, uint16_t d2_len)
+{
+    RTHashEntry *rte1 = (RTHashEntry *)d1;
+    RTHashEntry *rte2 = (RTHashEntry *)d2;
+    return (rte1->number == rte2->number);
+}
+
+static void RTHashFreeFunc(void *d)
+{
+    SCFree(d);
+}
+
+#endif
 /** \brief Update Packet and Flow
  *
  *  Updates packet and flow based on the new packet.
@@ -423,6 +444,21 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
 #endif
     /* update flags and counters */
     if (pkt_dir == TOSERVER) {
+#ifdef CALCULATE_RT
+        if (f->proto == IPPROTO_TCP) {
+            if (!f->rt_table) {
+                f->rt_table = HashTableInit(256, RTHashFunc, RTHashCompareFunc, RTHashFreeFunc);
+            }
+            RTHashEntry* rte = SCCalloc(1, sizeof(RTHashEntry));
+            rte->number = p->tcph->th_seq;
+            rte->ts = p->ts;
+            if (HashTableAdd(f->rt_table, (void *)rte, sizeof(rte)) != 0) {
+                SCLogDebug("Cannot add seq for packet %p in rt_table", p);
+            } else {
+                SCLogNotice("Added seq %d for packet %p.", rte->number, p);
+            }
+        }
+#endif
         f->todstpktcnt++;
         f->todstbytecnt += GET_PKT_LEN(p);
         p->flowflags = FLOW_PKT_TOSERVER;
@@ -445,6 +481,30 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
             FlowUpdateTtlTS(f, p, IPV6_GET_HLIM(p));
         }
     } else {
+#ifdef CALCULATE_RT
+        if (f->proto == IPPROTO_TCP) {
+            RTHashEntry rtk;
+            rtk.number = p->tcph->th_ack;
+            RTHashEntry* rte;
+            SCLogNotice("Looking for seq %d for packet %p.", rtk.number, p);
+            if ((rte = HashTableLookup(f->rt_table, (void *)&rtk, sizeof(rtk))) != 0) {
+                SCLogNotice("Got seq %d for packet %p.", rte->number, p);
+                if (TIMEVAL_EARLIER(rte->ts, p->ts)) {
+                    uint64_t rtusec = TIMEVAL_DIFF_USEC(p->ts, rte->ts);
+
+                    if (rtusec > f->maxrtusec) {
+                        f->maxrtusec = rtusec;
+                    }
+                    if (f->minrtusec == 0 || rtusec < f->minrtusec) {
+                        f->minrtusec = rtusec;
+                    }
+
+                    f->totalrtusec += rtusec;
+                    f->rtcnt++;        
+                }
+            }
+        }
+#endif
         f->tosrcpktcnt++;
         f->tosrcbytecnt += GET_PKT_LEN(p);
         p->flowflags = FLOW_PKT_TOCLIENT;

@@ -39,6 +39,11 @@ void TimeGet(struct timeval *);
                 ((uint64_t)(tv_old).tv_sec * 1000000 + (tv_old).tv_usec)) / \
                1000000)
 
+/** \brief compare two 'struct timeval' and return the difference in microseconds */
+#define TIMEVAL_DIFF_USEC(tv_new, tv_old) \
+    (uint64_t)((((uint64_t)(tv_new).tv_sec * 1000000 + (tv_new).tv_usec) - \
+                ((uint64_t)(tv_old).tv_sec * 1000000 + (tv_old).tv_usec)))
+
 /** \brief compare two 'struct timeval' and return if the first is earlier than the second */
 #define TIMEVAL_EARLIER(tv_first, tv_second) \
     (((tv_first).tv_sec < (tv_second).tv_sec) || \
