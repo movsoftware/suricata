@@ -27,10 +27,23 @@
 #include "detect-engine-state.h"
 #include "tmqh-flow.h"
 
-#define CALCULATE_RT true
 #ifdef CALCULATE_RT
 #include "util-hash.h"
+#define FREE_RTTABLE(f)  do { \
+    HashTableFree((f->rt_table)); \
+    (f)->rt_table = NULL; \
+    } while(0)
+#define RESET_RTCOUNTERS(f)      do { \
+    (f)->totalrtusec = 0; \
+    (f)->minrtusec = 0; \
+    (f)->maxrtusec = 0; \
+    (f)->rtcnt = 0; \
+    } while(0)
+#else
+#define FREE_RTTABLE(f)  do {} while(0)
+#define RESET_RTCOUNTERS(f) do {} while(0)
 #endif
+
 #define COPY_TIMESTAMP(src,dst) ((dst)->tv_sec = (src)->tv_sec, (dst)->tv_usec = (src)->tv_usec)
 
 #define RESET_COUNTERS(f) do { \
@@ -76,11 +89,7 @@
         (f)->sgh_toserver = NULL; \
         (f)->sgh_toclient = NULL; \
         (f)->flowvar = NULL; \
-        (f)->rt_table = NULL; \
-        (f)->totalrtusec = 0; \
-        (f)->minrtusec = 0; \
-        (f)->maxrtusec = 0; \
-        (f)->rtcnt = 0; \
+        RESET_RTCOUNTERS((f)); \
         RESET_COUNTERS((f)); \
     } while (0)
 
@@ -133,12 +142,8 @@
                 MacSetReset(ms); \
             } \
         } \
-        HashTableFree((f)->rt_table); \
-        (f)->rt_table = NULL; \
-        (f)->totalrtusec = 0; \
-        (f)->minrtusec = 0; \
-        (f)->maxrtusec = 0; \
-        (f)->rtcnt = 0; \
+        FREE_RTTABLE((f)); \
+        RESET_RTCOUNTERS((f)); \
         RESET_COUNTERS((f)); \
     } while(0)
 

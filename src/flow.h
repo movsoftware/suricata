@@ -44,7 +44,6 @@ typedef struct AppLayerParserState_ AppLayerParserState;
 
 #define TOSERVER 0
 #define TOCLIENT 1
-#define CALCULATE_RT true
 #ifdef CALCULATE_RT
 #include "util-hash.h"
 #endif

@@ -213,6 +213,36 @@ void EveAddFlow(Flow *f, JsonBuilder *js)
     jb_set_string(js, "start", timebuf1);
 }
 
+#ifdef CALCULATE_RT
+int EveAddRT(JsonBuilder *jb, const Flow *f);
+
+int EveAddRT(JsonBuilder *jb, const Flow *f)
+{
+    if (unlikely(jb == NULL))
+        return 0;
+
+    /* ensure we have a flow */
+    if (unlikely(f == NULL)) {
+        jb_close(jb);
+        return 0;
+    }
+
+    jb_set_uint(jb, "maxrtusec", f->maxrtusec);
+    jb_set_uint(jb, "minrtusec", f->minrtusec);
+    uint64_t avg = 0;
+    if (f->rtcnt > 0) {
+        avg = f->totalrtusec/f->rtcnt;
+    }
+    jb_set_uint(jb, "avgrtusec", avg);
+    jb_set_uint(jb, "totalrtusec", f->totalrtusec);
+    jb_set_uint(jb, "rtcnt", f->rtcnt);
+
+    jb_close(jb);
+    return 0;
+}
+
+#endif
+
 /* Eve format logging */
 static void EveFlowLogJSON(OutputJsonThreadCtx *aft, JsonBuilder *jb, Flow *f)
 {
@@ -311,6 +341,9 @@ static void EveFlowLogJSON(OutputJsonThreadCtx *aft, JsonBuilder *jb, Flow *f)
                 jb_set_string(jb, "state", tcp_state);
         }
 
+#ifdef CALCULATE_RT
+        EveAddRT(jb, f);
+#endif
         /* Close tcp. */
         jb_close(jb);
     }

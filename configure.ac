@@ -570,6 +570,14 @@
         AC_DEFINE([HAVE_DETECT_DISABLED], [1], [Detection is disabled])
     ])
 
+  # enable response time calcuations
+    AC_ARG_ENABLE(rt,
+           AS_HELP_STRING([--enable-rt], [Enable response time output]),[enable_rt=$enableval],[enable_rt=no])
+    AS_IF([test "x$enable_rt" = "xyes"], [
+        AC_DEFINE([CALCULATE_RT],[1],[Enable response time output])
+    ])
+    AM_CONDITIONAL([CALCULATE_RT], [test "x$enable_rt" = "xyes"])
+
 # libraries
 
   # zlib

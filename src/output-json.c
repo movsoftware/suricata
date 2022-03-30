@@ -423,38 +423,6 @@ void EveAddMetadata(const Packet *p, const Flow *f, JsonBuilder *js)
 
 int CreateJSONEther(JsonBuilder *parent, const Packet *p, const Flow *f);
 
-#ifdef CALCULATE_RT
-int EveAddRT(JsonBuilder *js, const Packet *p, const Flow *f);
-
-int EveAddRT(JsonBuilder *js, const Packet *p, const Flow *f)
-{
-    if (unlikely(js == NULL))
-        return 0;
-    /* start new EVE sub-object */
-    jb_open_object(js, "rt");
-    if (p == NULL) {
-        /* ensure we have a flow */
-        if (unlikely(f == NULL)) {
-            jb_close(js);
-            return 0;
-        }
-
-        jb_set_uint(js, "maxrtusec", f->maxrtusec);
-        jb_set_uint(js, "minrtusec", f->minrtusec);
-        uint64_t avg = 0;
-        if (f->rtcnt > 0) {
-            avg = f->totalrtusec/f->rtcnt;
-        }
-        jb_set_uint(js, "avgrtusec", avg);
-        jb_set_uint(js, "totalrtusec", f->totalrtusec);
-        jb_set_uint(js, "rtcnt", f->rtcnt);
-    }
-
-    jb_close(js);
-    return 0;
-}
-
-#endif
 
 void EveAddCommonOptions(const OutputJsonCommonSettings *cfg,
         const Packet *p, const Flow *f, JsonBuilder *js)
@@ -471,9 +439,6 @@ void EveAddCommonOptions(const OutputJsonCommonSettings *cfg,
     if (f != NULL && f->tenant_id > 0) {
         jb_set_uint(js, "tenant_id", f->tenant_id);
     }
-#ifdef CALCULATE_RT
-    EveAddRT(js, p, f);
-#endif
 }
 
 /**

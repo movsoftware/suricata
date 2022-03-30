@@ -452,10 +452,10 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
             RTHashEntry* rte = SCCalloc(1, sizeof(RTHashEntry));
             rte->number = p->tcph->th_seq;
             rte->ts = p->ts;
-            if (HashTableAdd(f->rt_table, (void *)rte, sizeof(rte)) != 0) {
+            if (HashTableAdd(f->rt_table, (void *)rte, sizeof(*rte)) != 0) {
                 SCLogDebug("Cannot add seq for packet %p in rt_table", p);
             } else {
-                SCLogNotice("Added seq %d for packet %p.", rte->number, p);
+                SCLogDebug("Added seq %d for packet %p.", rte->number, p);
             }
         }
 #endif
@@ -486,9 +486,9 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
             RTHashEntry rtk;
             rtk.number = p->tcph->th_ack;
             RTHashEntry* rte;
-            SCLogNotice("Looking for seq %d for packet %p.", rtk.number, p);
+            SCLogDebug("Looking for seq %d for packet %p.", rtk.number, p);
             if ((rte = HashTableLookup(f->rt_table, (void *)&rtk, sizeof(rtk))) != 0) {
-                SCLogNotice("Got seq %d for packet %p.", rte->number, p);
+                SCLogDebug("Got seq %d for packet %p.", rte->number, p);
                 if (TIMEVAL_EARLIER(rte->ts, p->ts)) {
                     uint64_t rtusec = TIMEVAL_DIFF_USEC(p->ts, rte->ts);
 
