@@ -445,12 +445,12 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
     /* update flags and counters */
     if (pkt_dir == TOSERVER) {
 #ifdef CALCULATE_RT
-        if (f->proto == IPPROTO_TCP) {
+        if (f->proto == IPPROTO_TCP && p->tcph) {
             if (!f->rt_table) {
                 f->rt_table = HashTableInit(256, RTHashFunc, RTHashCompareFunc, RTHashFreeFunc);
             }
             RTHashEntry* rte = SCCalloc(1, sizeof(RTHashEntry));
-            rte->number = p->tcph->th_seq;
+            rte->number = p->tcph->th_seq + p->payload_len;
             rte->ts = p->ts;
             if (HashTableAdd(f->rt_table, (void *)rte, sizeof(*rte)) != 0) {
                 SCLogDebug("Cannot add seq for packet %p in rt_table", p);
