@@ -44,9 +44,6 @@ typedef struct AppLayerParserState_ AppLayerParserState;
 
 #define TOSERVER 0
 #define TOCLIENT 1
-#ifdef CALCULATE_RT
-#include "util-hash.h"
-#endif
 /* per flow flags */
 
 /** At least one packet from the source address was seen */
@@ -322,15 +319,6 @@ typedef struct FlowAddress_ {
     } address;
 } FlowAddress;
 
-#ifdef CALCULATE_RT
-
-typedef struct RTHashEntry_ {
-    uint16_t number;
-    struct timeval ts;
-} RTHashEntry;
-
-#endif
-
 #define addr_data32 address.address_un_data32
 #define addr_data16 address.address_un_data16
 #define addr_data8  address.address_un_data8
@@ -338,6 +326,13 @@ typedef struct RTHashEntry_ {
 typedef unsigned short FlowRefCount;
 
 typedef unsigned short FlowStateType;
+
+#ifdef CALCULATE_RT
+typedef struct RTTableEntry_ {
+    struct timeval ts;
+    uint32_t seq;
+} RTTableEntry;
+#endif
 
 /** Local Thread ID */
 typedef uint16_t FlowThreadId;
@@ -515,7 +510,9 @@ typedef struct Flow_
     uint64_t todstbytecnt;
     uint64_t tosrcbytecnt;
 #ifdef CALCULATE_RT
-    HashTable* rt_table;
+    RTTableEntry* rt_table;
+    uint32_t rt_last_ack;
+    uint32_t rt_table_index;
     uint64_t totalrtusec;
     uint64_t minrtusec;
     uint64_t maxrtusec;

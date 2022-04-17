@@ -75,6 +75,10 @@
 
 #define FLOW_DEFAULT_PREALLOC    10000
 
+#ifdef CALCULATE_RT
+#define RT_TABLE_SIZE 32
+#endif
+
 SC_ATOMIC_DECLARE(FlowProtoTimeoutPtr, flow_timeouts);
 
 /** atomic int that is used when freeing a flow from the hash. In this
@@ -378,27 +382,6 @@ static inline void FlowUpdateEthernet(ThreadVars *tv, DecodeThreadVars *dtv,
     }
 }
 
-#ifdef CALCULATE_RT
-
-static uint32_t RTHashFunc(HashTable *h, void *data, uint16_t data_len)
-{
-    RTHashEntry *rte = (RTHashEntry *)data;
-    return rte->number % h->array_size;
-}
-
-static char RTHashCompareFunc(void *d1, uint16_t d1_len, void *d2, uint16_t d2_len)
-{
-    RTHashEntry *rte1 = (RTHashEntry *)d1;
-    RTHashEntry *rte2 = (RTHashEntry *)d2;
-    return (rte1->number == rte2->number);
-}
-
-static void RTHashFreeFunc(void *d)
-{
-    SCFree(d);
-}
-
-#endif
 /** \brief Update Packet and Flow
  *
  *  Updates packet and flow based on the new packet.
@@ -447,16 +430,16 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
 #ifdef CALCULATE_RT
         if (f->proto == IPPROTO_TCP && p->tcph) {
             if (!f->rt_table) {
-                f->rt_table = HashTableInit(256, RTHashFunc, RTHashCompareFunc, RTHashFreeFunc);
+                f->rt_table = SCCalloc(RT_TABLE_SIZE, sizeof(RTTableEntry));
+                f->rt_table_index = 0;
+                f->rt_last_ack = 0; 
             }
-            RTHashEntry* rte = SCCalloc(1, sizeof(RTHashEntry));
-            rte->number = p->tcph->th_seq + p->payload_len;
-            rte->ts = p->ts;
-            if (HashTableAdd(f->rt_table, (void *)rte, sizeof(*rte)) != 0) {
-                SCLogDebug("Cannot add seq for packet %p in rt_table", p);
-            } else {
-                SCLogDebug("Added seq %d for packet %p.", rte->number, p);
-            }
+            RTTableEntry rte;
+            rte.seq = p->tcph->th_seq + p->payload_len;
+            rte.ts = p->ts;
+            SCLogDebug("packet %"PRIu64" -- flow %p Adding seq %u to table %d", p->pcap_cnt, f, rte.seq, f->rt_table_index % RT_TABLE_SIZE);
+            f->rt_table[f->rt_table_index % RT_TABLE_SIZE] = rte;
+            f->rt_table_index++;
         }
 #endif
         f->todstpktcnt++;
@@ -482,15 +465,15 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
         }
     } else {
 #ifdef CALCULATE_RT
-        if (f->proto == IPPROTO_TCP) {
-            RTHashEntry rtk;
-            rtk.number = p->tcph->th_ack;
-            RTHashEntry* rte;
-            SCLogDebug("Looking for seq %d for packet %p.", rtk.number, p);
-            if ((rte = HashTableLookup(f->rt_table, (void *)&rtk, sizeof(rtk))) != 0) {
-                SCLogDebug("Got seq %d for packet %p.", rte->number, p);
-                if (TIMEVAL_EARLIER(rte->ts, p->ts)) {
-                    uint64_t rtusec = TIMEVAL_DIFF_USEC(p->ts, rte->ts);
+        if (f->proto == IPPROTO_TCP && p->tcph) {
+            SCLogDebug("packet %"PRIu64" -- flow %p Looking for seq %u", p->pcap_cnt, f, p->tcph->th_ack);
+            int last_index = f->rt_table_index > RT_TABLE_SIZE ? RT_TABLE_SIZE : f->rt_table_index;
+            for (int i = 0; i < last_index; i++) {
+                RTTableEntry* rtep = &f->rt_table[i];
+                // If the sequence number in the table is greater than the last ack received then consider it, otherwise it must be old
+                if (rtep->seq > f->rt_last_ack && rtep->seq <= p->tcph->th_ack && TIMEVAL_EARLIER(rtep->ts, p->ts)) {
+                    SCLogDebug("packet %"PRIu64" -- flow %p Got seq %u", p->pcap_cnt, f, rtep->seq);
+                    uint64_t rtusec = TIMEVAL_DIFF_USEC(p->ts, rtep->ts);
 
                     if (rtusec > f->maxrtusec) {
                         f->maxrtusec = rtusec;
@@ -500,9 +483,10 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
                     }
 
                     f->totalrtusec += rtusec;
-                    f->rtcnt++;        
+                    f->rtcnt++;
                 }
             }
+            f->rt_last_ack =  p->tcph->th_ack;
         }
 #endif
         f->tosrcpktcnt++;
