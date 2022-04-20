@@ -510,13 +510,13 @@ typedef struct Flow_
     uint64_t todstbytecnt;
     uint64_t tosrcbytecnt;
 #ifdef CALCULATE_RT
-    RTTableEntry* rt_table;
-    uint32_t rt_last_ack;
-    uint32_t rt_table_index;
-    uint64_t totalrtusec;
-    uint64_t minrtusec;
-    uint64_t maxrtusec;
-    uint64_t rtcnt;
+    RTTableEntry* srt_table;
+    uint32_t srt_last_ack;
+    uint32_t srt_table_index;
+    uint64_t totalsrtusec;
+    uint64_t minsrtusec;
+    uint64_t maxsrtusec;
+    uint64_t srtcnt;
 #endif
 } Flow;
 

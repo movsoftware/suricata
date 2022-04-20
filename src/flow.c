@@ -428,18 +428,19 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
     /* update flags and counters */
     if (pkt_dir == TOSERVER) {
 #ifdef CALCULATE_RT
-        if (f->proto == IPPROTO_TCP && p->tcph) {
-            if (!f->rt_table) {
-                f->rt_table = SCCalloc(RT_TABLE_SIZE, sizeof(RTTableEntry));
-                f->rt_table_index = 0;
-                f->rt_last_ack = 0; 
+    /* if this is a TCP packet and is dataful then calculate the response time */
+        if (f->proto == IPPROTO_TCP && p->tcph && p->payload_len > 0) {
+            if (!f->srt_table) {
+                f->srt_table = SCCalloc(RT_TABLE_SIZE, sizeof(RTTableEntry));
+                f->srt_table_index = 0;
+                f->srt_last_ack = 0; 
             }
             RTTableEntry rte;
-            rte.seq = p->tcph->th_seq + p->payload_len;
+            rte.seq = TCP_GET_SEQ(p) + p->payload_len;
             rte.ts = p->ts;
-            SCLogDebug("packet %"PRIu64" -- flow %p Adding seq %u to table %d", p->pcap_cnt, f, rte.seq, f->rt_table_index % RT_TABLE_SIZE);
-            f->rt_table[f->rt_table_index % RT_TABLE_SIZE] = rte;
-            f->rt_table_index++;
+            SCLogDebug("packet %"PRIu64" -- RT flow %p Adding base_seq %u seq %u to table %d", p->pcap_cnt, f, TCP_GET_SEQ(p), rte.seq, f->srt_table_index % RT_TABLE_SIZE);
+            f->srt_table[f->srt_table_index % RT_TABLE_SIZE] = rte;
+            f->srt_table_index++;
         }
 #endif
         f->todstpktcnt++;
@@ -465,28 +466,29 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
         }
     } else {
 #ifdef CALCULATE_RT
-        if (f->proto == IPPROTO_TCP && p->tcph) {
-            SCLogDebug("packet %"PRIu64" -- flow %p Looking for seq %u", p->pcap_cnt, f, p->tcph->th_ack);
-            int last_index = f->rt_table_index > RT_TABLE_SIZE ? RT_TABLE_SIZE : f->rt_table_index;
+        if (f->proto == IPPROTO_TCP && TCP_ISSET_FLAG_ACK(p)) {
+            uint32_t ack = TCP_GET_ACK(p);
+            SCLogDebug("packet %"PRIu64" -- RT flow %p Looking for seq %u", p->pcap_cnt, f, ack);
+            int last_index = f->srt_table_index > RT_TABLE_SIZE ? RT_TABLE_SIZE : f->srt_table_index;
             for (int i = 0; i < last_index; i++) {
-                RTTableEntry* rtep = &f->rt_table[i];
+                RTTableEntry* rtep = &f->srt_table[i];
                 // If the sequence number in the table is greater than the last ack received then consider it, otherwise it must be old
-                if (rtep->seq > f->rt_last_ack && rtep->seq <= p->tcph->th_ack && TIMEVAL_EARLIER(rtep->ts, p->ts)) {
-                    SCLogDebug("packet %"PRIu64" -- flow %p Got seq %u", p->pcap_cnt, f, rtep->seq);
+                if (rtep->seq > f->srt_last_ack && rtep->seq <= ack && TIMEVAL_EARLIER(rtep->ts, p->ts)) {
                     uint64_t rtusec = TIMEVAL_DIFF_USEC(p->ts, rtep->ts);
+                    SCLogDebug("packet %"PRIu64" -- RT flow %p Found seq %u rt %1.7f msec", p->pcap_cnt, f, rtep->seq, rtusec/1000.0);
 
-                    if (rtusec > f->maxrtusec) {
-                        f->maxrtusec = rtusec;
+                    if (rtusec > f->maxsrtusec) {
+                        f->maxsrtusec = rtusec;
                     }
-                    if (f->minrtusec == 0 || rtusec < f->minrtusec) {
-                        f->minrtusec = rtusec;
+                    if (f->minsrtusec == 0 || rtusec < f->minsrtusec) {
+                        f->minsrtusec = rtusec;
                     }
 
-                    f->totalrtusec += rtusec;
-                    f->rtcnt++;
+                    f->totalsrtusec += rtusec;
+                    f->srtcnt++;
                 }
             }
-            f->rt_last_ack =  p->tcph->th_ack;
+            f->srt_last_ack =  ack;
         }
 #endif
         f->tosrcpktcnt++;

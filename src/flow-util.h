@@ -30,16 +30,16 @@
 #ifdef CALCULATE_RT
 #include "util-hash.h"
 #define FREE_RTTABLE(f)  do { \
-    SCFree((f->rt_table)); \
-    (f)->rt_table = NULL; \
+    SCFree((f->srt_table)); \
+    (f)->srt_table = NULL; \
     } while(0)
 #define RESET_RTCOUNTERS(f)      do { \
-    (f)->rt_last_ack = 0; \
-    (f)->rt_table_index = 0; \
-    (f)->totalrtusec = 0; \
-    (f)->minrtusec = 0; \
-    (f)->maxrtusec = 0; \
-    (f)->rtcnt = 0; \
+    (f)->srt_last_ack = 0; \
+    (f)->srt_table_index = 0; \
+    (f)->totalsrtusec = 0; \
+    (f)->minsrtusec = 0; \
+    (f)->maxsrtusec = 0; \
+    (f)->srtcnt = 0; \
     } while(0)
 #else
 #define FREE_RTTABLE(f)  do {} while(0)

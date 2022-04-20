@@ -227,15 +227,15 @@ int EveAddRT(JsonBuilder *jb, const Flow *f)
         return 0;
     }
 
-    jb_set_uint(jb, "maxrtusec", f->maxrtusec);
-    jb_set_uint(jb, "minrtusec", f->minrtusec);
+    jb_set_uint(jb, "maxrtusec", f->maxsrtusec);
+    jb_set_uint(jb, "minrtusec", f->minsrtusec);
     uint64_t avg = 0;
-    if (f->rtcnt > 0) {
-        avg = f->totalrtusec/f->rtcnt;
+    if (f->srtcnt > 0) {
+        avg = f->totalsrtusec/f->srtcnt;
     }
     jb_set_uint(jb, "avgrtusec", avg);
-    jb_set_uint(jb, "totalrtusec", f->totalrtusec);
-    jb_set_uint(jb, "rtcnt", f->rtcnt);
+    jb_set_uint(jb, "totalrtusec", f->totalsrtusec);
+    jb_set_uint(jb, "rtcnt", f->srtcnt);
 
     jb_close(jb);
     return 0;
