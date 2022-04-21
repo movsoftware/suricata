@@ -517,6 +517,14 @@ typedef struct Flow_
     uint64_t minsrtusec;
     uint64_t maxsrtusec;
     uint64_t srtcnt;
+
+    RTTableEntry* crt_table;
+    uint32_t crt_last_ack;
+    uint32_t crt_table_index;
+    uint64_t totalcrtusec;
+    uint64_t mincrtusec;
+    uint64_t maxcrtusec;
+    uint64_t crtcnt;
 #endif
 } Flow;
 

@@ -32,6 +32,8 @@
 #define FREE_RTTABLE(f)  do { \
     SCFree((f->srt_table)); \
     (f)->srt_table = NULL; \
+    SCFree((f->crt_table)); \
+    (f)->crt_table = NULL; \
     } while(0)
 #define RESET_RTCOUNTERS(f)      do { \
     (f)->srt_last_ack = 0; \
@@ -40,6 +42,12 @@
     (f)->minsrtusec = 0; \
     (f)->maxsrtusec = 0; \
     (f)->srtcnt = 0; \
+    (f)->crt_last_ack = 0; \
+    (f)->crt_table_index = 0; \
+    (f)->totalcrtusec = 0; \
+    (f)->mincrtusec = 0; \
+    (f)->maxcrtusec = 0; \
+    (f)->crtcnt = 0; \
     } while(0)
 #else
 #define FREE_RTTABLE(f)  do {} while(0)
