@@ -446,7 +446,7 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
 #ifdef CALCULATE_RT
         if (f->proto == IPPROTO_TCP && TCP_ISSET_FLAG_ACK(p)) {
             uint32_t ack = TCP_GET_ACK(p);
-            SCLogDebug("packet %"PRIu64" -- CRT flow %p Looking for seq %u", p->pcap_cnt, f, ack);
+            SCLogDebug("packet %"PRIu64" -- CRT flow %p Looking for seq %u with last ack %u", p->pcap_cnt, f, ack, f->crt_last_ack);
             int last_index = f->crt_table_index > RT_TABLE_SIZE ? RT_TABLE_SIZE : f->crt_table_index;
             for (int i = 0; i < last_index; i++) {
                 RTTableEntry* rtep = &f->crt_table[i];
@@ -510,7 +510,7 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
 #ifdef CALCULATE_RT
         if (f->proto == IPPROTO_TCP && TCP_ISSET_FLAG_ACK(p)) {
             uint32_t ack = TCP_GET_ACK(p);
-            SCLogDebug("packet %"PRIu64" -- SRT flow %p Looking for seq %u", p->pcap_cnt, f, ack);
+            SCLogDebug("packet %"PRIu64" -- SRT flow %p Looking for seq %u with last ack %u", p->pcap_cnt, f, ack, f->srt_last_ack);
             int last_index = f->srt_table_index > RT_TABLE_SIZE ? RT_TABLE_SIZE : f->srt_table_index;
             for (int i = 0; i < last_index; i++) {
                 RTTableEntry* rtep = &f->srt_table[i];
